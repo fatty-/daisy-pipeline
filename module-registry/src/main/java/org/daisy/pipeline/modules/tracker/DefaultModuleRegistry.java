@@ -1,0 +1,82 @@
+package org.daisy.pipeline.modules.tracker;
+
+import java.net.URI;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+
+import org.daisy.expath.parser.EXPathPackageParser;
+import org.daisy.pipeline.modules.Component;
+import org.daisy.pipeline.modules.Module;
+import org.daisy.pipeline.modules.ModuleRegistry;
+import org.osgi.framework.BundleContext;
+
+public class DefaultModuleRegistry implements ModuleRegistry {
+
+	HashMap<URI, Module> mComponentsMap= new HashMap<URI, Module>();
+	HashSet<Module> mModules= new HashSet<Module>();
+	private EXPathPackageParser mParser;
+
+	/*
+	private final Function<Bundle, Module> toModule = new Function<Bundle, Module>() {
+
+		public Module apply(Bundle bundle) {
+		
+			return parser.parse(bundle.getEntry("expath-pkg.xml"));
+		}
+
+	};
+	 */
+	private EXPathPackageTracker tracker;
+	
+
+	public DefaultModuleRegistry() {
+	}
+
+	public void init(BundleContext context) {
+		tracker = new EXPathPackageTracker(context,this);
+		tracker.setParser(mParser);
+		tracker.open();
+		//System.out.println("MR UP");
+		
+	}
+	
+	
+
+	public void close() {
+		tracker.close();
+	}
+
+	public void setParser(EXPathPackageParser parser) {
+		this.mParser = parser;
+	}
+
+	public Iterator<Module> iterator() {
+		// TODO cache the modules and synchronize with tracker
+		return mModules.iterator();
+	}
+
+	public Module getModuleByComponent(URI uri) {
+		return mComponentsMap.get(uri);
+	}
+
+	public Module resolveDependency(URI component, Module source) {
+		// TODO check cache, otherwise delegate to resolver
+		return null;
+	}
+
+	@Override
+	public Iterable<URI> getComponents() {
+		return mComponentsMap.keySet();
+	}
+
+	@Override
+	public void addModule(Module module) {
+		mModules.add(module);
+		//System.out.println("[LOG] Registring "+module.getName());
+		for(Component component: module.getComponents()){
+			//System.out.println("[LOG] Comp "+component.getURI());
+			mComponentsMap.put(component.getURI(), module);
+		}		
+	}
+}
