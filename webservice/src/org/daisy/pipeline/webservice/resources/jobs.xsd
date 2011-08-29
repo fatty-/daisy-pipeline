@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" targetNamespace="http://www.daisy.org/ns/pipeline/data" xmlns:data="http://www.daisy.org/ns/pipeline/data">
+  <xs:element name="jobs">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element maxOccurs="unbounded" ref="data:job"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="job">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="data:script" maxOccurs="1" minOccurs="1"/>
+        <xs:element ref="data:result" maxOccurs="1" minOccurs="0"/>
+        <xs:element ref="data:errors" maxOccurs="1" minOccurs="0"/>
+        <xs:element ref="data:log" maxOccurs="1" minOccurs="0"/>
+      </xs:sequence>
+      <xs:attribute name="id" use="required" type="xs:string"/>
+      <xs:attribute name="status" use="required" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="script">
+    <xs:complexType>
+      <xs:attribute name="href" use="required" type="xs:anyURI"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="result">
+    <xs:complexType>
+      <xs:attribute name="href" use="required" type="xs:anyURI"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="errors">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="data:error" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="error">
+    <xs:complexType mixed="true">
+      <xs:attribute name="level" use="required" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="log">
+    <xs:complexType>
+      <xs:attribute name="href" use="required" type="xs:anyURI"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
