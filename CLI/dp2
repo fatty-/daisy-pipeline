@@ -1,0 +1,68 @@
+#!/usr/bin/env ruby
+require 'rubygems'
+require "./command"
+require './core/alive'
+require './core/authentication'
+require './core/conf'
+require './core/ctxt'
+require './core/dp2'
+require "./core/helpers"
+require './core/job'
+require './core/multipart.rb'
+require './core/resource'
+require './core/rest'
+require "./core/result_processor"
+require './core/scripts'
+require 'digest'
+require './dynamic_commands'
+require './help_command.rb'
+require 'logger'
+require 'net/http'
+require 'nokogiri'
+require 'openssl'
+require 'optparse'
+require 'time'
+require 'uri'
+require 'yaml'
+require 'optparse'
+
+def main
+	command=checkargs
+	Ctxt.conf("config.yml")
+	dynCommands=DynamicCommands.get
+	cmds={}
+	dynCommands.each{|cmd| cmds[cmd.name]=cmd}
+	cmds["help"]=HelpCommand.new(cmds)
+	error=""
+	hasErr=false
+
+	if command!=nil && cmds.has_key?(command)
+		begin
+			cmds[command].execute(ARGV[1..-1])
+		rescue Exception=>e
+			error=e.message
+			hasErr=true	
+			raise e	
+		end
+	else
+		hasErr=true
+	end
+
+	if hasErr
+		puts "\nERROR: #{error}\n\n" if error!=nil && !error.empty?
+		puts cmds["help"].help
+	end
+end
+
+def checkargs
+  cmd=nil
+  ARGV.each do |a|
+    cmd = a
+    break
+  end
+  return cmd
+end
+
+# execution starts here
+main 
+

@@ -1,0 +1,13 @@
+#WS CONFIGURATION
+host: http://localhost
+port: 8182
+ws_path: ws   
+ws_timeup: 15
+#DP2 launch config 
+exec_line_nix: ../Main/dp2ws.sh  
+exec_line_win: ..\Main\dp2ws.bat  
+local: true
+# ROBOT CONF
+client_key: clientkey
+client_secret: supersecret
+
