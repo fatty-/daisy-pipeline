@@ -8,4 +8,6 @@
     <option name='opt-mods-filename'>the-mods-file.xml</option>
     <option name='opt-css-filename'>the-css-file.css</option>
     <option name='opt-zedai-filename'>the-zedai-file.xml</option>
+    <!-- in local mode, there is an additional option to specify -->
+    <option name='opt-output-dir'>/tmp</option>
 </jobRequest>
