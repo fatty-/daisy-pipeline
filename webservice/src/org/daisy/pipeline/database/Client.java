@@ -13,31 +13,31 @@ public class Client extends BasicDatabaseObject {
 
 	/** The logger. */
 	private static Logger logger = LoggerFactory.getLogger(Client.class.getName());
-	
+
 	@Id
 	@GeneratedValue
 	private String internalId;
-	
+
 	@Override
 	public String getInternalId() {
 		return internalId;
 	}
-	
+
 	public enum Role {
 	    ADMIN, CLIENTAPP
 	}
-	
+
 	// the fields for each client object
 	private String id;
 	private String secret;
 	private Role role = Role.CLIENTAPP;
-	
+
 	// in the future, use a separate table to list contact information for client app maintainers
 	// with a single field, we'll just store email info
 	private String contactInfo;
-	
-	
-	public Client() {		
+
+
+	public Client() {
 	}
 
 	public Client(String id, String secret, Role role, String contactInfo) {
@@ -46,7 +46,7 @@ public class Client extends BasicDatabaseObject {
 		this.role = role;
 		this.contactInfo = contactInfo;
 	}
-	
+
 	public String getId() {
 		return id;
 	}
@@ -78,20 +78,21 @@ public class Client extends BasicDatabaseObject {
 	public void setContactInfo(String contactInfo) {
 		this.contactInfo = contactInfo;
 	}
-	
+
 	// copy everything except the database-generated Id
+	@Override
 	public void copyData(BasicDatabaseObject object) {
 		if (!(object instanceof Client)) {
 			logger.warn("Could not copy data from differently-typed object.");
 			return;
 		}
-		
-		Client client = (Client)object;
+
+		Client client = (Client) object;
 		id = client.getId();
 		secret = client.getSecret();
 		role = client.getRole();
 		contactInfo = client.getContactInfo();
-		
+
 	}
-		
+
 }
