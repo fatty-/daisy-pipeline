@@ -1,10 +1,24 @@
 package org.daisy.pipeline.database;
 
-//dummy class to mimic the eventual "real" persistence db version
-public class Client extends BasicDatabaseObject{
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
+@Entity
+public class Client extends BasicDatabaseObject {
+
+	/** The logger. */
+	private static Logger logger = LoggerFactory.getLogger(Client.class.getName());
+
+	@Id
+	@GeneratedValue
 	private String internalId;
 
+	@Override
 	public String getInternalId() {
 		return internalId;
 	}
@@ -65,5 +79,20 @@ public class Client extends BasicDatabaseObject{
 		this.contactInfo = contactInfo;
 	}
 
+	// copy everything except the database-generated Id
+	@Override
+	public void copyData(BasicDatabaseObject object) {
+		if (!(object instanceof Client)) {
+			logger.warn("Could not copy data from differently-typed object.");
+			return;
+		}
+
+		Client client = (Client) object;
+		id = client.getId();
+		secret = client.getSecret();
+		role = client.getRole();
+		contactInfo = client.getContactInfo();
+
+	}
 
 }

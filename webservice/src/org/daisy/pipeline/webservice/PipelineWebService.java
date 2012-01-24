@@ -2,6 +2,7 @@ package org.daisy.pipeline.webservice;
 
 import java.io.File;
 
+import org.daisy.pipeline.database.DatabaseManager;
 import org.daisy.pipeline.job.JobManager;
 import org.daisy.pipeline.script.ScriptRegistry;
 import org.restlet.Application;
@@ -90,6 +91,11 @@ public class PipelineWebService extends Application {
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
+		
+		// TODO remove this, it's for TESTING ONLY
+		logger.info("Initializing database");
+		DatabaseManager.getInstance().addTestData();
+		// end TESTING block
 	}
 
 	/**

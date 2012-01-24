@@ -1,0 +1,25 @@
+<persistence version="1.0" xmlns="http://java.sun.com/xml/ns/persistence" 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+    xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_1_0.xsd">
+    <!-- this name could be anything; it doesn't have to be related to the namespace -->
+    <persistence-unit name="org.daisy.pipeline.database.persistenceUnit">
+        <class>org.daisy.pipeline.database.Client</class>
+        <class>org.daisy.pipeline.database.RequestLogEntry</class>
+        <properties>
+            <!-- Embedded Derby Login -->
+            <property name="javax.persistence.jdbc.driver" value="org.apache.derby.jdbc.EmbeddedDriver"/>
+            
+            <!-- Database Schema Creation -->
+            <property name="eclipselink.ddl-generation" value="create-tables"/>
+            <property name="eclipselink.ddl-generation.output-mode" value="database"/>
+            
+            <!-- Logging Settings -->
+            <property name="eclipselink.logging.level" value="INFO" />
+            <property name="eclipselink.logging.thread" value="false" />
+            <property name="eclipselink.logging.session" value="false" />
+            <property name="eclipselink.logging.exceptions" value="true" />
+            <property name="eclipselink.logging.timestamp" value="false"/>
+            
+        </properties>
+    </persistence-unit>
+</persistence>
