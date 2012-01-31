@@ -35,7 +35,9 @@ Import-Package: javax.crypto,
  org.w3c.dom.ls,
  org.xml.sax,
  javax.persistence;version="2.0.3",
- org.apache.derby.jdbc 
+ org.apache.derby.jdbc,
+ org.osgi.framework,
+ org.osgi.framework.launch
 Require-Bundle: org.daisy.pipeline.framework,
  org.daisy.common-utils
 Service-Component: OSGI-INF/webservice.xml
