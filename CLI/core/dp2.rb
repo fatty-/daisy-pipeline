@@ -2,6 +2,7 @@ require_rel './core/ctxt'
 require_rel './core/scripts'
 require_rel './core/alive'
 require_rel './core/job'
+require_rel './core/halt'
 require "open3"
 #TODO asking if the service is alive before every call may not be a good idea, store that it's alive once and asume it in next calls
 class Dp2
@@ -20,16 +21,19 @@ class Dp2
 				execPath=File::expand_path(Ctxt.conf[Ctxt.conf.class::EXEC_LINE],@basePath)
 				#
 				ex=IO.popen(execPath ) 
-
+				pid=ex.pid
+				if RUBY_PLATFORM.downcase.include?("linux")
+					ex.close
+				end
 				#system('start '+execPath)
 				#will throw execetion the command is not found
-				pid =ex.pid
-				Ctxt.logger().debug("ws launched with pid #{pid}")
+				#pid =ex.pid
+				#Ctxt.logger().debug("ws launched with pid #{pid}")
 				Ctxt.logger().debug("waiting for the ws to come up...")
-				puts "Waiting for the WS to come up"
+				puts "[DP2] Waiting for the WS to come up"
 				wait_till_up
 				Ctxt.logger().debug("ws up!")
-				puts("The daisy pipeline 2 WS is up!")
+				puts("[DP2] The daisy pipeline 2 WS is up!")
 			else
 				raise RuntimeError,"Unable to reach the WS"
 			end
@@ -54,8 +58,12 @@ class Dp2
 			map={}
 			scripts =  ScriptsResource.new.getResource
 			scripts.each{|key,val|
-				script=ScriptResource.new(val.uri).getResource
-				map[script.nicename]=script
+				begin
+					script=ScriptResource.new(val.href).getResource
+					map[script.nicename]=script
+				rescue 
+					puts "[DP2] (Ignoring #{key})"
+				end
 			}
 			return map
 		end
@@ -65,20 +73,20 @@ class Dp2
 	def job(script,data,wait)
 		job=nil
 		msgIdx=0
-		if alive?
+		#if alive?
 			job=JobResource.new.postResource(script.to_xml_request,data)
 			if wait==true
 				begin
 					sleep 1.5 
 					job=job_status(job.id,msgIdx)
-					job.messages.each{|msg| puts msg.to_s}
+					job.messages.each{|msg| puts "[WS] "+ msg.to_s}
 					if job.messages.size > 0
 						msgIdx=(Integer(job.messages[-1].seq)+1).to_s
 					end
 					Ctxt.logger.debug("msg idx #{msgIdx}")	
 				end while job.status=='RUNNING' 
 			end 
-		end
+		#end
 		return job
 	end
 
@@ -100,8 +108,11 @@ class Dp2
 	def job_zip_result(id,outpath)
 		return JobResultZipResource.new(id,outpath).getResource	
 	end	
-	def alive?	
-  		return AliveResource.new.getResource 
+	def halt(key)
+		return HaltResource.new(key).getResource	
+	end	
+	def alive?
+	  	 return AliveResource.new.getResource 
 	end	
 	
 	private :alive?,:alive!,:wait_till_up
