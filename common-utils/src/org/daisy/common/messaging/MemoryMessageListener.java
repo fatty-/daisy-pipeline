@@ -1,24 +1,28 @@
 package org.daisy.common.messaging;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.daisy.common.base.Filter;
 import org.daisy.common.messaging.Message.Level;
 
 import com.google.common.collect.HashMultimap;
 
 
 /**
- * This class receives message events and stores them in memory and gives access to them via the accessor interface.  
+ * This class receives message events and stores them in memory and gives access to them via the accessor interface.
  * The class that is interested in processing a memoryMessage
- * 
+ *
  */
 public class MemoryMessageListener implements MessageListener,MessageAccessor {
-	
+	/* TODO add a configuration item for message level */
 	/** The m messages. */
 	HashMultimap<Level, Message> mMessages = HashMultimap.create();
+	List<Message> mSeqList=new ArrayList<Message>();
+	int mSequence = 0;
 
 	/**
 	 * Stores the message
@@ -28,7 +32,8 @@ public class MemoryMessageListener implements MessageListener,MessageAccessor {
 	 * @param thw the thw
 	 */
 	private void store(Level level,String str,Throwable thw){
-		Message msg= new Message.Builder().withLevel(level).withMessage(str).withThrowable(thw).build();
+		Message msg= new Message.Builder().withLevel(level).withMessage(str).withThrowable(thw).withSequence(mSequence++).build();
+		mSeqList.add(msg);
 		mMessages.put(level, msg);
 	}
 
@@ -37,7 +42,7 @@ public class MemoryMessageListener implements MessageListener,MessageAccessor {
 	 */
 	@Override
 	public void trace(String msg) {
-		store(Level.TRACE, msg, null);
+	//	store(Level.TRACE, msg, null);
 	}
 
 	/* (non-Javadoc)
@@ -45,7 +50,8 @@ public class MemoryMessageListener implements MessageListener,MessageAccessor {
 	 */
 	@Override
 	public void trace(String msg, Throwable throwable) {
-		store(Level.TRACE, msg, throwable);
+		//ignore
+		//store(Level.TRACE, msg, throwable);
 	}
 
 	/* (non-Javadoc)
@@ -53,7 +59,8 @@ public class MemoryMessageListener implements MessageListener,MessageAccessor {
 	 */
 	@Override
 	public void debug(String msg) {
-		store(Level.DEBUG, msg, null);
+		//ignore for now
+		//store(Level.DEBUG, msg, null);
 
 	}
 
@@ -62,7 +69,7 @@ public class MemoryMessageListener implements MessageListener,MessageAccessor {
 	 */
 	@Override
 	public void debug(String msg, Throwable throwable) {
-		store(Level.DEBUG, msg, throwable);
+		//store(Level.DEBUG, msg, throwable);
 	}
 
 	/* (non-Javadoc)
@@ -166,14 +173,14 @@ public class MemoryMessageListener implements MessageListener,MessageAccessor {
 		set.addAll(Arrays.asList(fromLevel));
 		LinkedList<Message> msgs= new LinkedList<Message>();
 		for (Level iter:Level.values()){
-			if(set.contains(iter)){
+			if(set.contains(iter) && mMessages.containsKey(iter) && mMessages.get(iter)!=null){
 				msgs.addAll(mMessages.get(iter));
 			}
 		}
 		return msgs;
-	
+
 	}
-	
+
 	/**
 	 * Gets the messages from the given level.
 	 *
@@ -198,6 +205,20 @@ public class MemoryMessageListener implements MessageListener,MessageAccessor {
 	@Override
 	public MessageAccessor getAccessor() {
 		return this;
+	}
+	@Override
+	public List<Message> getAll() {
+		return new ArrayList<Message>(mSeqList);
+	}
+
+	@Override
+	public List<Message> filtered(Filter<List<Message>>... filters) {
+		List<Message> filtered = getAll();
+
+		for(Filter<List<Message>> filter:filters){
+			filtered=filter.filter(filtered);
+		}
+		return filtered;
 	}
 
 }

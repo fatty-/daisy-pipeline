@@ -17,10 +17,10 @@ public class DefaultJobExecutionService implements JobExecutionService {
 
 	/** The Constant logger. */
 	private static final Logger logger = LoggerFactory.getLogger(DefaultJobExecutionService.class);
-	
+
 	/** The xproc engine. */
 	private XProcEngine xprocEngine;
-	
+
 	/**
 	 * Sets the x proc engine.
 	 *
@@ -31,8 +31,8 @@ public class DefaultJobExecutionService implements JobExecutionService {
 		this.xprocEngine = xprocEngine;
 	}
 
-	
-	private ExecutorService executor = Executors.newCachedThreadPool(); 
+
+	private final ExecutorService executor = Executors.newCachedThreadPool();
 
 	/**
 	 * Activate (OSGI)
@@ -40,20 +40,25 @@ public class DefaultJobExecutionService implements JobExecutionService {
 	public void activate(){
 		logger.trace("Activating job execution service");
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.daisy.pipeline.job.JobExecutionService#submit(org.daisy.pipeline.job.Job)
 	 */
+	@Override
 	public void submit(final Job job) {
 		executor.submit(new Runnable() {
-			
+
 			@Override
 			public void run() {
+				try{
 				logger.info("Starting to log to job's log file too:"+job.getId().toString());
 				MDC.put("jobid", job.getId().toString());
 				job.run(xprocEngine);
 				MDC.remove("jobid");
 				logger.info("Stopping to log to job's log file");
+				}catch (Exception e) {
+					throw new RuntimeException(e.getCause());
+				}
 			}
 		});
 	}

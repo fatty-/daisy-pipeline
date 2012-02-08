@@ -2,7 +2,6 @@ package org.daisy.converter.parser.stax;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.net.URL;
 import java.util.LinkedList;
 
@@ -26,6 +25,7 @@ import org.daisy.pipeline.script.XProcOptionMetadata;
 import org.daisy.pipeline.script.XProcPortMetadata;
 import org.daisy.pipeline.script.XProcScript;
 import org.daisy.pipeline.script.XProcScriptParser;
+import org.daisy.pipeline.script.XProcScriptService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,15 +34,15 @@ import com.google.common.base.Predicates;
 
 // TODO: Auto-generated Javadoc
 /**
- * StaxXProcScriptParser parses the xpl file extracting the metadata and buiding the XProcScript object 
+ * StaxXProcScriptParser parses the xpl file extracting the metadata and buiding the XProcScript object
  */
 public class StaxXProcScriptParser implements XProcScriptParser {
-	
+
 	/** The Constant logger. */
 	private static final Logger logger = LoggerFactory.getLogger(StaxXProcScriptParser.class);
 	/** The xmlinputfactory. */
 	private XMLInputFactory mFactory;
-	
+
 	/** The uri resolver. */
 	private URIResolver mUriResolver;
 
@@ -61,9 +61,9 @@ public class StaxXProcScriptParser implements XProcScriptParser {
 	 * @param factory the new factory
 	 */
 	public void setFactory(XMLInputFactory factory) {
-		this.mFactory = factory;
+		mFactory = factory;
 	}
-	
+
 	/**
 	 * Activate (OSGI)
 	 */
@@ -75,48 +75,50 @@ public class StaxXProcScriptParser implements XProcScriptParser {
 	 * @see org.daisy.pipeline.script.XProcScriptParser#parse(java.net.URI)
 	 */
 	@Override
-	public XProcScript parse(URI uri) {
-		return new StatefulParser().parse(uri);
+	public XProcScript parse(final XProcScriptService descriptor) {
+		return new StatefulParser().parse(descriptor);
 	}
-	
+
 	/**
 	 *StatefulParser makes the parsing process thread safe.
 	 */
 	private class StatefulParser {
-		
+
 		/** The m ancestors. */
-		private LinkedList<XMLEvent> mAncestors = new LinkedList<XMLEvent>();
-		
+		private final LinkedList<XMLEvent> mAncestors = new LinkedList<XMLEvent>();
+
 		/** The m port builders. */
-		private LinkedList<XProcPortMetadataBuilderHolder> mPortBuilders = new LinkedList<XProcPortMetadataBuilderHolder>();
-		
+		private final LinkedList<XProcPortMetadataBuilderHolder> mPortBuilders = new LinkedList<XProcPortMetadataBuilderHolder>();
+
 		/** The m option builders. */
-		private LinkedList<XProcOptionMetadataBuilderHolder> mOptionBuilders = new LinkedList<XProcOptionMetadataBuilderHolder>();
-		
+		private final LinkedList<XProcOptionMetadataBuilderHolder> mOptionBuilders = new LinkedList<XProcOptionMetadataBuilderHolder>();
+
 		/** The script builder. */
-		private XProcScript.Builder scriptBuilder = new XProcScript.Builder();
-		
+		private XProcScript.Builder scriptBuilder ;
+
 		/**
 		 * Parses the xpl file extracting the metadata attached to options,ports and the step
 		 *
 		 * @param uri the uri
 		 * @return the x proc script
 		 */
-		public XProcScript parse(URI uri) {
+		public XProcScript parse(final XProcScriptService descriptor) {
 			if (mFactory == null) {
 				throw new IllegalStateException();
 			}
 			InputStream is = null;
 			XMLEventReader reader = null;
 			scriptBuilder = new XProcScript.Builder();
+			logger.debug("Parsing with descriptor:"+descriptor);
+			scriptBuilder=scriptBuilder.withDescriptor(descriptor);
 			StaxXProcPipelineInfoParser infoParser = new StaxXProcPipelineInfoParser();
 			infoParser.setFactory(mFactory);
 			infoParser.setUriResolver(mUriResolver);
 			try {
 				// init the XMLStreamReader
 				// uRL descUrl = pipelineInfo.getURI().toURL();
-				scriptBuilder.withPipelineInfo(infoParser.parse(uri));
-				URL descUrl = uri.toURL();
+				scriptBuilder.withPipelineInfo(infoParser.parse(descriptor.getURI()));
+				URL descUrl = descriptor.getURI().toURL();
 				// if we have a url resolver resolve the
 				if (mUriResolver != null) {
 					Source src = mUriResolver.resolve(descUrl.toString(), "");
@@ -127,12 +129,12 @@ public class StaxXProcScriptParser implements XProcScriptParser {
 				reader = mFactory.createXMLEventReader(is);
 
 				parseStep(reader);
-				for (XProcOptionMetadataBuilderHolder bHolder : this.mOptionBuilders) {
+				for (XProcOptionMetadataBuilderHolder bHolder : mOptionBuilders) {
 					XProcOptionMetadata opt = bHolder.mBuilder.build();
 					scriptBuilder.withOptionMetadata(new QName(bHolder.mName),
 							opt);
 				}
-				for (XProcPortMetadataBuilderHolder bHolder : this.mPortBuilders) {
+				for (XProcPortMetadataBuilderHolder bHolder : mPortBuilders) {
 					XProcPortMetadata opt = bHolder.mBuilder.build();
 					scriptBuilder.withPortMetadata(bHolder.mName, opt);
 				}
@@ -149,10 +151,12 @@ public class StaxXProcScriptParser implements XProcScriptParser {
 						+ te.getMessage(), te);
 			} finally {
 				try {
-					if (reader != null)
+					if (reader != null) {
 						reader.close();
-					if (is != null)
+					}
+					if (is != null) {
 						is.close();
+					}
 				} catch (Exception e) {
 					// ignore;
 				}
@@ -196,7 +200,7 @@ public class StaxXProcScriptParser implements XProcScriptParser {
 		 */
 		public void parseStep(final XMLEventReader reader) throws XMLStreamException {
 
-			
+
 
 			while (reader.hasNext()) {
 				XMLEvent event = readNext(reader);
@@ -281,10 +285,12 @@ public class StaxXProcScriptParser implements XProcScriptParser {
 					.getAttributeByName(XProcScriptConstants.Attributes.PX_DIR);
 			Attribute mediaType = optionElement
 					.getAttributeByName(XProcScriptConstants.Attributes.PX_MEDIA_TYPE);
-			if (mediaType != null)
+			if (mediaType != null) {
 				optionBuilder.withMediaType(mediaType.getValue());
-			if (type != null)
+			}
+			if (type != null) {
 				optionBuilder.withType(type.getValue());
+			}
 			if (dir != null) {
 				optionBuilder.withDirection(dir.getValue());
 			}
@@ -352,8 +358,9 @@ public class StaxXProcScriptParser implements XProcScriptParser {
 
 			Attribute mediaType = portElement
 					.getAttributeByName(XProcScriptConstants.Attributes.PX_MEDIA_TYPE);
-			if (mediaType != null)
+			if (mediaType != null) {
 				portBuilder.withMediaType(mediaType.getValue());
+			}
 
 		}
 	}
@@ -362,13 +369,13 @@ public class StaxXProcScriptParser implements XProcScriptParser {
 	 * DocumentationHolde holds documentation elements
 	 */
 	private static class DocumentationHolder {
-		
+
 		/** The m short. */
 		String mShort;
-		
+
 		/** The m detail. */
 		String mDetail;
-		
+
 		/** The m homepage. */
 		String mHomepage;
 	}
@@ -377,10 +384,10 @@ public class StaxXProcScriptParser implements XProcScriptParser {
 	 * The Class XProcOptionMetadataBuilderHolder holds metadata for options
 	 */
 	private static class XProcOptionMetadataBuilderHolder {
-		
+
 		/** The m name. */
 		String mName;
-		
+
 		/** The m builder. */
 		XProcOptionMetadata.Builder mBuilder;
 	}
@@ -389,13 +396,13 @@ public class StaxXProcScriptParser implements XProcScriptParser {
 	 * The Class XProcPortMetadataBuilderHolder holds metadata for ports
 	 */
 	private static class XProcPortMetadataBuilderHolder {
-		
+
 		/** The m name. */
 		String mName;
-		
+
 		/** The m builder. */
 		XProcPortMetadata.Builder mBuilder;
 	}
 
-	
+
 }

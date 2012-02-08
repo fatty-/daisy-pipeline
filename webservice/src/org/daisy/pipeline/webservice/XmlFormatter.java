@@ -1,7 +1,9 @@
 package org.daisy.pipeline.webservice;
 
 import java.io.StringWriter;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -12,13 +14,19 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
+import org.daisy.common.base.Filter;
 import org.daisy.common.messaging.Message;
+import org.daisy.common.messaging.Message.Level;
+import org.daisy.common.messaging.MessageAccessor;
 import org.daisy.common.xproc.XProcOptionInfo;
 import org.daisy.common.xproc.XProcPortInfo;
+import org.daisy.pipeline.database.Client;
 import org.daisy.pipeline.job.Job;
 import org.daisy.pipeline.script.XProcOptionMetadata;
 import org.daisy.pipeline.script.XProcPortMetadata;
 import org.daisy.pipeline.script.XProcScript;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.DOMImplementation;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -32,8 +40,8 @@ import org.w3c.dom.ls.LSSerializer;
  */
 public class XmlFormatter {
 
-	/** The Constant NS_PIPELINE_DATA. */
-	private static final String NS_PIPELINE_DATA = "http://www.daisy.org/ns/pipeline/data";
+	/** The logger. */
+	private static Logger logger = LoggerFactory.getLogger(XmlFormatter.class.getName());
 
 	/*
 	 * example output: daisy-pipeline/webservice/docs/sampleXml/job.xml
@@ -41,343 +49,402 @@ public class XmlFormatter {
 	/**
 	 * Job to xml.
 	 *
-	 * @param job the job
-	 * @param serverAddress the server address
+	 * @param job
+	 *            the job
+	 * @param serverAddress
+	 *            the server address
 	 * @return the document
 	 */
-	public static Document jobToXml(Job job, String serverAddress) {
-		Document doc = createDom("job");
-		toXmlElm(job, doc, serverAddress);
-		
+	public static Document jobToXml(Job job, int msgSeq) {
+		Document doc = XmlFormatter.createDom("job");
+		toXmlElm(job, doc, msgSeq, true);
+
 		// for debugging only
 		if (!Validator.validateXml(doc, Validator.jobSchema)) {
-			System.out.println("INVALID XML:\n" + DOMToString(doc));
+			logger.error("INVALID XML:\n" + XmlFormatter.DOMToString(doc));
 		}
-		
+
 		return doc;
 	}
-	
+
 	/*
 	 * example output: daisy-pipeline/webservice/docs/sampleXml/jobs.xml
 	 */
 	/**
 	 * Jobs to xml.
 	 *
-	 * @param jobs the jobs
-	 * @param serverAddress the server address
+	 * @param jobs
+	 *            the jobs
+	 * @param serverAddress
+	 *            the server address
 	 * @return the document
 	 */
-	public static Document jobsToXml(Iterable<Job> jobs, String serverAddress) {
-		Document doc = createDom("jobs");
+	public static Document jobsToXml(Iterable<Job> jobs) {
+		Document doc = XmlFormatter.createDom("jobs");
 		Element jobsElm = doc.getDocumentElement();
-		
+
 		Iterator<Job> it = jobs.iterator();
-		while(it.hasNext()) {
+		while (it.hasNext()) {
 			Job job = it.next();
-			Element jobElm = toXmlElm(job, doc, serverAddress);
+			Element jobElm = toXmlElm(job, doc, 0, false);
 			jobsElm.appendChild(jobElm);
 		}
-		
+
 		// for debugging only
 		if (!Validator.validateXml(doc, Validator.jobsSchema)) {
-			System.out.println("INVALID XML:\n" + DOMToString(doc));
+			logger.error("INVALID XML:\n" + XmlFormatter.DOMToString(doc));
 		}
-		
+
 		return doc;
 	}
-	
+
 	/*
 	 * example output: daisy-pipeline/webservice/docs/sampleXml/script.xml
 	 */
 	/**
 	 * Xproc script to xml.
 	 *
-	 * @param script the script
+	 * @param script
+	 *            the script
 	 * @return the document
 	 */
 	public static Document xprocScriptToXml(XProcScript script) {
-		Document doc = createDom("script");
-		toXmlElm(script, doc);
-		
+		Document doc = XmlFormatter.createDom("script");
+		toXmlElm(script, doc, true);
+
 		// for debugging only
 		if (!Validator.validateXml(doc, Validator.scriptSchema)) {
-			System.out.println("INVALID XML:\n" + DOMToString(doc));
+			logger.error("INVALID XML:\n" + XmlFormatter.DOMToString(doc));
 		}
-		
+
 		return doc;
 	}
-	
+
 	/*
 	 * example output: daisy-pipeline/webservice/docs/sampleXml/scripts.xml
 	 */
 	/**
 	 * Xproc scripts to xml.
 	 *
-	 * @param scripts the scripts
+	 * @param scripts
+	 *            the scripts
 	 * @return the document
 	 */
 	public static Document xprocScriptsToXml(Iterable<XProcScript> scripts) {
-		Document doc = createDom("scripts");
+		Document doc = XmlFormatter.createDom("scripts");
 		Element scriptsElm = doc.getDocumentElement();
-		
+
 		Iterator<XProcScript> it = scripts.iterator();
-		while(it.hasNext()) {
+		while (it.hasNext()) {
 			XProcScript script = it.next();
-			Element scriptElm = toXmlElm(script, doc);
+			Element scriptElm = toXmlElm(script, doc, false);
 			scriptsElm.appendChild(scriptElm);
 		}
-		
+
 		// for debugging only
 		if (!Validator.validateXml(doc, Validator.scriptsSchema)) {
-			System.out.println("INVALID XML:\n" + DOMToString(doc));
+			logger.error("INVALID XML:\n" + XmlFormatter.DOMToString(doc));
 		}
-		
+
 		return doc;
 	}
-	
-	/**
-	 * Job log to xml.
-	 *
-	 * @param job the job
-	 * @param serverAddress the server address
-	 * @return the document
-	 */
-	public static Document jobLogToXml(Job job, String serverAddress) {
-		Document doc = createDom("log");
-		Element root = doc.getDocumentElement();
-		Element jobElm = doc.createElementNS(NS_PIPELINE_DATA, "job");
-		jobElm.setAttribute("href", serverAddress + "/jobs/" + job.getId().toString());
-		Element dataElm = doc.createElementNS(NS_PIPELINE_DATA, "data");
-		// TODO: replace with actual log file
-		dataElm.setTextContent(job.getStatus().name());
-		
-		root.appendChild(jobElm);
-		root.appendChild(dataElm);
-		
-		// for debugging only
-		if (!Validator.validateXml(doc, Validator.logSchema)) {
-			System.out.println("INVALID XML:\n" + DOMToString(doc));
-		}
-		
-		return doc;
-	}
-	
-	/**
-	 * To xml elm.
-	 *
-	 * @param script the script
-	 * @param doc the doc
-	 * @return the element
-	 */
-	private static Element toXmlElm(XProcScript script, Document doc) {
+
+	private static Element toXmlElm(XProcScript script, Document doc, boolean detail) {
 		Element rootElm = null;
-		
+
 		if (doc.getDocumentElement().getNodeName().equals("script")) {
 			rootElm = doc.getDocumentElement();
+		} else {
+			rootElm = doc.createElementNS(XmlFormatter.NS_PIPELINE_DATA, "script");
 		}
-		else {
-			rootElm = doc.createElementNS(NS_PIPELINE_DATA, "script");
-		}
-		rootElm.setAttribute("href", script.getURI().toString());
-		
-		Element nicenameElm = doc.createElementNS(NS_PIPELINE_DATA, "nicename");
+		logger.debug("Script: "+script.getName());
+		logger.debug("Descriptor: "+script.getDescriptor());
+		String scriptHref = PipelineWebService.SCRIPT_ROUTE.replaceFirst("\\{id\\}", script.getDescriptor().getName());
+
+		rootElm.setAttribute("id", script.getDescriptor().getName());
+		rootElm.setAttribute("href", scriptHref);
+		rootElm.setAttribute("script", script.getURI().toString());
+
+		Element nicenameElm = doc.createElementNS(XmlFormatter.NS_PIPELINE_DATA, "nicename");
 		nicenameElm.setTextContent(script.getName());
 		rootElm.appendChild(nicenameElm);
-		
-		Element descriptionElm = doc.createElementNS(NS_PIPELINE_DATA, "description");
+
+		Element descriptionElm = doc.createElementNS(XmlFormatter.NS_PIPELINE_DATA, "description");
 		descriptionElm.setTextContent(script.getDescription());
 		rootElm.appendChild(descriptionElm);
-		
-		String homepage = script.getHomepage();
-		if (homepage != null && homepage.trim().length() > 0) {
-			Element homepageElm = doc.createElementNS(NS_PIPELINE_DATA, "homepage");
-			homepageElm.setTextContent(homepage);
-			rootElm.appendChild(homepageElm);
-		}
-		
-		Iterator<XProcPortInfo> it_input = script.getXProcPipelineInfo().getInputPorts().iterator();
-		Iterator<XProcOptionInfo> it_options = script.getXProcPipelineInfo().getOptions().iterator();
-		
-		while(it_input.hasNext()) {
-			XProcPortInfo input = it_input.next();			
-			
-			Element inputElm = doc.createElementNS(NS_PIPELINE_DATA, "input");
-			inputElm.setAttribute("name", input.getName());
-			
-			if (input.isSequence() == true) {
-				inputElm.setAttribute("sequenceAllowed", "true");
-			}
-			else {
-				inputElm.setAttribute("sequenceAllowed", "false");
-			}
-			
-			XProcPortMetadata meta = script.getPortMetadata(input.getName());
-			inputElm.setAttribute("mediaType", meta.getMediaType());
-			inputElm.setAttribute("desc", meta.getDescription());
 
-			rootElm.appendChild(inputElm);
-		}
-		
-		while(it_options.hasNext()) {
-			XProcOptionInfo option = it_options.next();
-			
-			Element optionElm = doc.createElementNS(NS_PIPELINE_DATA, "option");
-			optionElm.setAttribute("name", option.getName().toString());
-			if (option.isRequired()) {
-				optionElm.setAttribute("required", "true");
+		if (detail) {
+			String homepage = script.getHomepage();
+			if (homepage != null && homepage.trim().length() > 0) {
+				Element homepageElm = doc.createElementNS(XmlFormatter.NS_PIPELINE_DATA, "homepage");
+				homepageElm.setTextContent(homepage);
+				rootElm.appendChild(homepageElm);
 			}
-			else {
-				optionElm.setAttribute("required", "false");
+
+			Iterator<XProcPortInfo> it_input = script.getXProcPipelineInfo()
+					.getInputPorts().iterator();
+			Iterator<XProcOptionInfo> it_options = script.getXProcPipelineInfo()
+					.getOptions().iterator();
+			Iterator<XProcPortInfo> it_output = script.getXProcPipelineInfo()
+					.getOutputPorts().iterator();
+
+			while (it_input.hasNext()) {
+				XProcPortInfo input = it_input.next();
+
+				Element inputElm = doc.createElementNS(XmlFormatter.NS_PIPELINE_DATA, "input");
+				inputElm.setAttribute("name", input.getName());
+
+				if (input.isSequence() == true) {
+					inputElm.setAttribute("sequence", "true");
+				} else {
+					inputElm.setAttribute("sequence", "false");
+				}
+
+				XProcPortMetadata meta = script.getPortMetadata(input.getName());
+				inputElm.setAttribute("mediaType", meta.getMediaType());
+				inputElm.setAttribute("desc", meta.getDescription());
+
+				rootElm.appendChild(inputElm);
 			}
-			
-			XProcOptionMetadata meta = script.getOptionMetadata(option.getName());
-			optionElm.setAttribute("type", meta.getType());
-			optionElm.setAttribute("mediaType", meta.getMediaType());
-			optionElm.setAttribute("desc", meta.getDescription());
-			
-			rootElm.appendChild(optionElm);
+
+			while (it_options.hasNext()) {
+				XProcOptionInfo option = it_options.next();
+
+				Element optionElm = doc.createElementNS(XmlFormatter.NS_PIPELINE_DATA, "option");
+				optionElm.setAttribute("name", option.getName().toString());
+				if (option.isRequired()) {
+					optionElm.setAttribute("required", "true");
+				} else {
+					optionElm.setAttribute("required", "false");
+				}
+
+				XProcOptionMetadata meta = script.getOptionMetadata(option
+						.getName());
+				optionElm.setAttribute("type", meta.getType());
+				optionElm.setAttribute("mediaType", meta.getMediaType());
+				optionElm.setAttribute("desc", meta.getDescription());
+
+				rootElm.appendChild(optionElm);
+			}
+
+			while (it_output.hasNext()) {
+				XProcPortInfo output = it_output.next();
+
+				Element outputElm = doc.createElementNS(XmlFormatter.NS_PIPELINE_DATA, "output");
+				outputElm.setAttribute("name", output.getName());
+
+				if (output.isSequence() == true) {
+					outputElm.setAttribute("sequence", "true");
+				} else {
+					outputElm.setAttribute("sequence", "false");
+				}
+				XProcPortMetadata meta = script.getPortMetadata(output.getName());
+				outputElm.setAttribute("mediaType", meta.getMediaType());
+				outputElm.setAttribute("desc", meta.getDescription());
+
+				rootElm.appendChild(outputElm);
+			}
 		}
-		
+
 		return rootElm;
 	}
-	
+
 	/**
 	 * To xml elm.
 	 *
-	 * @param job the job
-	 * @param doc the doc
-	 * @param serverAddress the server address
+	 * @param job
+	 *            the job
+	 * @param doc
+	 *            the doc
+	 * @param serverAddress
+	 *            the server address
 	 * @return the element
 	 */
-	private static Element toXmlElm(Job job, Document doc, String serverAddress) {
+	private static Element toXmlElm(Job job, Document doc, int msgSeq, boolean detail) {
 		Element rootElm = null;
-		
+
 		if (doc.getDocumentElement().getNodeName().equals("job")) {
 			rootElm = doc.getDocumentElement();
+		} else {
+			rootElm = doc.createElementNS(XmlFormatter.NS_PIPELINE_DATA, "job");
 		}
-		else {
-			rootElm = doc.createElementNS(NS_PIPELINE_DATA, "job");
-		}
-		
+
 		Job.Status status = job.getStatus();
-		
+		String jobHref = PipelineWebService.JOB_ROUTE.replaceFirst("\\{id\\}", job.getId().toString());
+
 		rootElm.setAttribute("id", job.getId().toString());
-		if (status == Job.Status.DONE) {
-			rootElm.setAttribute("status", "DONE");
-		}
-		else if (status == Job.Status.IDLE) {
-			rootElm.setAttribute("status", "IDLE");
-		}
-		else if (status == Job.Status.RUNNING) {
-			rootElm.setAttribute("status", "RUNNING");
-		}
-		
-		Element scriptElm = doc.createElementNS(NS_PIPELINE_DATA, "script");
-		scriptElm.setAttribute("href", job.getScript().getURI().toString());
-		rootElm.appendChild(scriptElm);
-		
-		
-		if (status == Job.Status.DONE) {
-			Element resultElm = doc.createElementNS(NS_PIPELINE_DATA, "result");
-			resultElm.setAttribute("href", serverAddress + "/jobs/" + job.getId().toString() + "/result.zip");
-			rootElm.appendChild(resultElm);
-		
-			// list the errors and warnings
-			Element messagesElm = doc.createElementNS(NS_PIPELINE_DATA, "messages");
-			Iterator<Message> it_error = job.getResult().getErrors().iterator();
-			while(it_error.hasNext()) {
-				Element errorElm = doc.createElementNS(NS_PIPELINE_DATA, "error");
-				Message err = it_error.next();
-				errorElm.setTextContent(err.getMsg());
-				messagesElm.appendChild(errorElm);
+		rootElm.setAttribute("href", jobHref);
+		rootElm.setAttribute("status", status.toString());
+
+		if (detail) {
+			Element scriptElm = toXmlElm(job.getScript(), doc, false);
+			rootElm.appendChild(scriptElm);
+
+			Element messagesElm = doc.createElementNS(XmlFormatter.NS_PIPELINE_DATA, "messages");
+			//TODO wrap this in a static context
+			HashSet<Level> levels= new HashSet<Level>();
+			levels.add(Level.WARNING);
+			levels.add(Level.INFO);
+			levels.add(Level.ERROR);
+			Filter<List<Message>> seqFilt= new MessageAccessor.SequenceFilter(msgSeq);
+			Filter<List<Message>> levelFilt= new MessageAccessor.LevelFilter(levels);
+			//end of wrapping things
+
+			try {
+				List<Message> msgs= job.getMonitor().getMessageAccessor().filtered(new Filter[]{seqFilt,levelFilt});
+				for (Message msg :msgs) {
+					Element singleMsgElm = doc.createElementNS(XmlFormatter.NS_PIPELINE_DATA,
+							"message");
+					singleMsgElm.setAttribute( "level",msg.getLevel().toString());
+					singleMsgElm.setAttribute( "sequence",msg.getSequence()+"");
+					singleMsgElm.setTextContent(msg.getMsg());
+					messagesElm.appendChild(singleMsgElm);
+				}
+				if (msgs.size() > 0) {
+					rootElm.appendChild(messagesElm);
+				}
+			} catch (Exception e) {
+				System.out.println(e.getCause());
 			}
-			
-			Iterator<Message> it_warn = job.getResult().getErrors().iterator();
-			while(it_warn.hasNext()) {
-				Element warningElm = doc.createElementNS(NS_PIPELINE_DATA, "warning");
-				Message warn = it_warn.next();
-				warningElm.setTextContent(warn.getMsg());
-				messagesElm.appendChild(warningElm);
-			}
-			
-			rootElm.appendChild(messagesElm);
-			
-			
-			// reference the log file
-			Element logElm = doc.createElementNS(NS_PIPELINE_DATA, "log");
-			logElm.setAttribute("href", serverAddress + "/jobs/" + job.getId() + "/log");
+
+			Element logElm = doc.createElementNS(XmlFormatter.NS_PIPELINE_DATA, "log");
+			String logHref = PipelineWebService.LOG_ROUTE.replaceFirst("\\{id\\}", job.getId().toString());
+			logElm.setAttribute("href", logHref);
 			rootElm.appendChild(logElm);
+
+			if (job.getStatus() == Job.Status.DONE) {
+				Element resultElm = doc.createElementNS(XmlFormatter.NS_PIPELINE_DATA, "result");
+				String resultHref = PipelineWebService.RESULT_ROUTE.replaceFirst("\\{id\\}", job.getId().toString());
+				resultElm.setAttribute("href", resultHref);
+				rootElm.appendChild(resultElm);
+			}
 		}
-		
 		return rootElm;
 	}
-	
-	/**
-	 * Creates the dom.
-	 *
-	 * @param documentElementName the document element name
-	 * @return the document
-	 */
-	public static Document createDom(String documentElementName){
-		try {
-			DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
-		    DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
-		    DOMImplementation domImpl = documentBuilder.getDOMImplementation();
-		    Document document = domImpl.createDocument(NS_PIPELINE_DATA, documentElementName, null);
-		    
-			return document;
-		
-		
-		} catch (ParserConfigurationException e) {
-			e.printStackTrace();
-			return null;
+
+	public static Document clientToXml(Client client) {
+		Document doc = XmlFormatter.createDom("client");
+		XmlFormatter.toXmlElm(client, doc);
+
+		// for debugging only
+		if (!Validator.validateXml(doc, Validator.clientSchema)) {
+			XmlFormatter.logger.error("INVALID XML:\n" + XmlFormatter.DOMToString(doc));
 		}
-	    
-	}	
-	
-	/* 
-	 * from: 
-	 * http://www.journaldev.com/71/utility-java-class-to-format-xml-document-to-xml-string-and-xml-to-document
+
+		return doc;
+	}
+
+	public static Document clientsToXml(Iterable<Client> clients) {
+		Document doc = XmlFormatter.createDom("clients");
+		Element clientsElm = doc.getDocumentElement();
+
+		Iterator<Client> it = clients.iterator();
+		while (it.hasNext()) {
+			Client client = it.next();
+			Element clientElm = XmlFormatter.toXmlElm(client, doc);
+			clientsElm.appendChild(clientElm);
+		}
+
+		// for debugging only
+		if (!Validator.validateXml(doc, Validator.clientsSchema)) {
+			XmlFormatter.logger.error("INVALID XML:\n" + XmlFormatter.DOMToString(doc));
+		}
+
+		return doc;
+	}
+
+	public static Element toXmlElm(Client client, Document doc) {
+		Element rootElm = null;
+
+		if (doc.getDocumentElement().getNodeName().equals("client")) {
+			rootElm = doc.getDocumentElement();
+		} else {
+			rootElm = doc.createElementNS(XmlFormatter.NS_PIPELINE_DATA, "client");
+		}
+
+		String clientHref = PipelineWebService.CLIENT_ROUTE.replaceFirst("\\{id\\}", client.getId());
+
+		rootElm.setAttribute("href", clientHref);
+		rootElm.setAttribute("id", client.getId());
+		rootElm.setAttribute("secret", client.getSecret());
+		rootElm.setAttribute("role", client.getRole().toString());
+		rootElm.setAttribute("contact", client.getContactInfo());
+
+		return rootElm;
+	}
+
+	/*
+	 * from:
+	 * http://www.journaldev.com/71/utility-java-class-to-format-xml-document
+	 * -to-xml-string-and-xml-to-document
 	 */
 	/**
 	 * DOM to string.
 	 *
-	 * @param doc the doc
+	 * @param doc
+	 *            the doc
 	 * @return the string
 	 */
 	public static String DOMToString(Document doc) {
-        String xmlString = "";
-        if (doc != null) {
-            try {
-                TransformerFactory transfac = TransformerFactory.newInstance();
-                Transformer trans = transfac.newTransformer();
-                trans.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
-                trans.setOutputProperty(OutputKeys.INDENT, "yes");
-                StringWriter sw = new StringWriter();
-                StreamResult result = new StreamResult(sw);
-                DOMSource source = new DOMSource(doc);
-                trans.transform(source, result);
-                xmlString = sw.toString();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        return xmlString;
-    }
-	
+		String xmlString = "";
+		if (doc != null) {
+			try {
+				TransformerFactory transfac = TransformerFactory.newInstance();
+				Transformer trans = transfac.newTransformer();
+				trans.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+				trans.setOutputProperty(OutputKeys.INDENT, "yes");
+				StringWriter sw = new StringWriter();
+				StreamResult result = new StreamResult(sw);
+				DOMSource source = new DOMSource(doc);
+				trans.transform(source, result);
+				xmlString = sw.toString();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		return xmlString;
+	}
+
+	/** The Constant NS_PIPELINE_DATA. */
+	public static final String NS_PIPELINE_DATA = "http://www.daisy.org/ns/pipeline/data";
+
 	/**
 	 * Node to string.
 	 *
-	 * @param node the node
+	 * @param node
+	 *            the node
 	 * @return the string
 	 */
 	public static String nodeToString(Node node) {
-        Document doc = node.getOwnerDocument();
-        DOMImplementationLS domImplLS = (DOMImplementationLS) doc.getImplementation();
-        LSSerializer serializer = domImplLS.createLSSerializer();
-        serializer.getDomConfig().setParameter("xml-declaration", false);        
-        String string = serializer.writeToString(node);
-        return string.trim();
-    }
+		Document doc = node.getOwnerDocument();
+		DOMImplementationLS domImplLS = (DOMImplementationLS) doc.getImplementation();
+		LSSerializer serializer = domImplLS.createLSSerializer();
+		serializer.getDomConfig().setParameter("xml-declaration", false);
+		String string = serializer.writeToString(node);
+		return string.trim();
+	}
+
+	/**
+	 * Creates the dom.
+	 *
+	 * @param documentElementName
+	 *            the document element name
+	 * @return the document
+	 */
+	public static Document createDom(String documentElementName) {
+		try {
+			DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
+			DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
+			DOMImplementation domImpl = documentBuilder.getDOMImplementation();
+			Document document = domImpl.createDocument(NS_PIPELINE_DATA, documentElementName, null);
+
+			return document;
+
+		} catch (ParserConfigurationException e) {
+			e.printStackTrace();
+			return null;
+		}
+
+	}
 
 }

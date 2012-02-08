@@ -1,8 +1,8 @@
 package org.daisy.converter.parser.stax;
 
-import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.net.URISyntaxException;
@@ -24,7 +24,7 @@ import org.junit.Test;
  * The Class XProcScriptParserTest.
  */
 public class XProcScriptParserTest {
-	
+
 	/** The scp. */
 	XProcScript scp;
 
@@ -35,10 +35,15 @@ public class XProcScriptParserTest {
 	 */
 	@Before
 	public void setUp() throws URISyntaxException {
+
+
+		this.getClass().getClassLoader()
+		.getResource("script.xpl").toURI();
 		StaxXProcScriptParser parser = new StaxXProcScriptParser();
 		parser.setFactory(XMLInputFactory.newInstance());
-		scp = parser.parse(this.getClass().getClassLoader()
-				.getResource("script.xpl").toURI());
+		//scp = parser.parse(); Try to fix this using a service
+
+
 	}
 
 	/**
@@ -92,7 +97,7 @@ public class XProcScriptParserTest {
 		assertNull(meta.getNiceName());
 		assertNull(meta.getDescription());
 	}
-	
+
 	/**
 	 * Test output port.
 	 */
@@ -125,7 +130,7 @@ public class XProcScriptParserTest {
 	public void testParameterPort() {
 		// TODO test parameter metadata
 	}
-	
+
 	/**
 	 * Test missing parameter metadata.
 	 */

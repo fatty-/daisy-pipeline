@@ -1,5 +1,5 @@
 /*
- * 
+ *
  */
 package org.daisy.pipeline.script;
 
@@ -11,7 +11,7 @@ import java.net.URI;
  * The Interface ScriptRegistry keeps track of the scripts defined by the loaded modules.
  */
 public interface ScriptRegistry {
-	
+
 	/**
 	 * Gets the script located at the uri.
 	 *
@@ -19,7 +19,15 @@ public interface ScriptRegistry {
 	 * @return the script
 	 */
 	public XProcScriptService getScript(URI uri);
-	
+	/**
+	 * Gets the script looking it up by its short name.
+	 *
+	 * @param name the script name
+	 * @return the script
+	 */
+
+	public XProcScriptService getScript(String name);
+
 	/**
 	 * Gets all the scripts.
 	 *
@@ -27,4 +35,3 @@ public interface ScriptRegistry {
 	 */
 	public Iterable<XProcScriptService> getScripts();
 }
- 

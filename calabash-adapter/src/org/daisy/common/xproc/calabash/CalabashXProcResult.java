@@ -1,26 +1,10 @@
 package org.daisy.common.xproc.calabash;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLConnection;
-
-import javax.xml.transform.Result;
-import javax.xml.transform.stream.StreamResult;
-
-import net.sf.saxon.s9api.SaxonApiException;
-import net.sf.saxon.s9api.Serializer;
-
-import org.daisy.common.base.Provider;
 import org.daisy.common.messaging.MessageAccessor;
 import org.daisy.common.xproc.XProcOutput;
 import org.daisy.common.xproc.XProcResult;
 
 import com.xmlcalabash.core.XProcConfiguration;
-import com.xmlcalabash.io.ReadablePipe;
 import com.xmlcalabash.runtime.XPipeline;
 
 // TODO: Auto-generated Javadoc
@@ -31,10 +15,10 @@ public final class CalabashXProcResult implements XProcResult {
 
 	/** The xpipeline. */
 	private final XPipeline xpipeline;
-	
+
 	/** The configuration. */
 	private final XProcConfiguration configuration;
-	
+
 	/** The message accessor. */
 	private final MessageAccessor messageAccessor;
 
@@ -60,7 +44,7 @@ public final class CalabashXProcResult implements XProcResult {
 	private CalabashXProcResult(XPipeline xpipeline,XProcConfiguration configuration,MessageAccessor accessor) {
 		this.xpipeline = xpipeline;
 		this.configuration = configuration;
-		this.messageAccessor=accessor;
+		messageAccessor=accessor;
 	}
 
 	/* (non-Javadoc)
@@ -68,6 +52,8 @@ public final class CalabashXProcResult implements XProcResult {
 	 */
 	@Override
 	public void writeTo(XProcOutput output) {
+		throw new IllegalStateException("Not supported");
+		/**
 		for (String port : xpipeline.getOutputs()) {
 
 			Provider<Result> resultProvider = output.getResultProvider(port);
@@ -114,6 +100,7 @@ public final class CalabashXProcResult implements XProcResult {
 				}
 			}
 		}
+		*/
 	}
 
 	/* (non-Javadoc)
@@ -121,7 +108,7 @@ public final class CalabashXProcResult implements XProcResult {
 	 */
 	@Override
 	public MessageAccessor getMessages() {
-		return this.messageAccessor;
+		return messageAccessor;
 	}
 
 }

@@ -35,9 +35,10 @@ public class Message {
 	/** The m time stamp. */
 	final Date mTimeStamp;
 
+	private final int mSequence;
 	/**
 	 * Instantiates a new message object
-	 * 
+	 *
 	 * @param level
 	 *            the level
 	 * @param msg
@@ -45,16 +46,17 @@ public class Message {
 	 * @param throwable
 	 *            the throwable
 	 */
-	private Message(Level level, String msg, Throwable throwable) {
+	private Message(Level level, String msg, Throwable throwable,int sequence) {
 		mLevel = level;
 		mMsg = msg;
 		mThrowable = throwable;
 		mTimeStamp = new Date();
+		mSequence=sequence;
 	}
 
 	/**
 	 * Gets the throwable in case was defined in the constructor or null otherwise.
-	 * 
+	 *
 	 * @return the throwable
 	 */
 	public Throwable getThrowable() {
@@ -62,8 +64,8 @@ public class Message {
 	}
 
 	/**
-	 * Gets the msg 
-	 * 
+	 * Gets the msg
+	 *
 	 * @return the msg
 	 */
 	public String getMsg() {
@@ -72,7 +74,7 @@ public class Message {
 
 	/**
 	 * Gets the level.
-	 * 
+	 *
 	 * @return the level
 	 */
 	public Level getLevel() {
@@ -81,12 +83,17 @@ public class Message {
 
 	/**
 	 * Gets the time stamp.
-	 * 
+	 *
 	 * @return the time stamp
 	 */
 	public Date getTimeStamp() {
 		return mTimeStamp;
 	}
+
+	public int getSequence() {
+		return mSequence;
+	}
+
 
 	/**
 	 * Builder for creating new messages
@@ -102,9 +109,10 @@ public class Message {
 		/** The m level. */
 		Level mLevel;
 
+		int mSequence;
 		/**
 		 * With message.
-		 * 
+		 *
 		 * @param message
 		 *            the message
 		 * @return the builder
@@ -116,7 +124,7 @@ public class Message {
 
 		/**
 		 * With level.
-		 * 
+		 *
 		 * @param level
 		 *            the level
 		 * @return the builder
@@ -128,7 +136,7 @@ public class Message {
 
 		/**
 		 * With throwable.
-		 * 
+		 *
 		 * @param throwable
 		 *            the throwable
 		 * @return the builder
@@ -140,11 +148,16 @@ public class Message {
 
 		/**
 		 * Builds the message based on the objects provided using the "with" methods.
-		 * 
+		 *
 		 * @return the message
 		 */
 		public Message build() {
-			return new Message(mLevel, mMsg, mThrowable);
+			return new Message(mLevel, mMsg, mThrowable,mSequence);
+		}
+
+		public Builder withSequence(int i) {
+			mSequence=i;
+			return this;
 		}
 	}
 }

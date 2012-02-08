@@ -13,6 +13,7 @@
 		<daisy.test>${project.baseUri}../test/</daisy.test> 
 		<daisy.target>${project.baseUri}../target-platform</daisy.target>
         </properties>
+	
 	<modules>
 	<module>../calabash-adapter</module>
 	<module>../calabash-custom-steps</module>
@@ -24,7 +25,6 @@
 	<module>../daisy.pipeline.frontend.feature</module>
 	<module>../daisy.pipeline.frontend.site</module>
 	<module>../daisy.pipeline.site</module>
-	<module>../expath-pkg-parser</module>
 	<module>../framework-core</module>
 	<module>../module-common</module>
 	<module>../module-registry</module>
@@ -33,6 +33,9 @@
 	<module>../target-platform</module>
 	<module>../webservice</module>
 	<module>../woodstox-osgi-adapter</module>
+	<module>../xmlcatalog</module>
+	<module>../xpath-registry</module>
+	<module>../xmlcatalog.test</module>
 	<module>../xproc-api</module>
 	<module>../Main</module>
 	</modules>
@@ -78,6 +81,7 @@
 			     </executions>
 		       </plugin>
 			-->
+
                         <plugin>
                                 <groupId>org.sonatype.tycho</groupId>
                                 <artifactId>tycho-maven-plugin</artifactId>

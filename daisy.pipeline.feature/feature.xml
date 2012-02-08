@@ -93,15 +93,30 @@
          version="0.0.0"
          unpack="false"/>
 
+
    <plugin
-         id="org.daisy.pipeline.modules.expath-pkg-parser"
+         id="org.daisy.pipeline.modules.registry"
          download-size="0"
          install-size="0"
          version="0.0.0"
          unpack="false"/>
 
    <plugin
-         id="org.daisy.pipeline.modules.registry"
+         id="xmlcatalog"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+   <plugin
+         id="xpath-registry"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+   <plugin
+         id="xmlcatalog.test"
          download-size="0"
          install-size="0"
          version="0.0.0"

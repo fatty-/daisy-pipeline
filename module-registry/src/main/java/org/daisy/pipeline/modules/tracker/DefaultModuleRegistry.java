@@ -1,17 +1,17 @@
 package org.daisy.pipeline.modules.tracker;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 
-import org.daisy.expath.parser.DefaultModuleBuilder;
-import org.daisy.expath.parser.EXPathPackageParser;
 import org.daisy.pipeline.modules.Component;
+import org.daisy.pipeline.modules.Entity;
 import org.daisy.pipeline.modules.Module;
 import org.daisy.pipeline.modules.ModuleRegistry;
-import org.daisy.pipeline.modules.ResourceLoader;
+import org.daisy.pipeline.xmlcatalog.XmlCatalogParser;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.BundleEvent;
@@ -20,54 +20,26 @@ import org.osgi.util.tracker.BundleTrackerCustomizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-/**
- * The Class DefaultModuleRegistry tracks the modules loaded into the pipeline.
- */
 public class DefaultModuleRegistry implements ModuleRegistry {
 
-	/**
-	 * ModuleTracker tracks bundles loaded into the OSGI framework, recognises the daisy pipeline 2 modules and stores them. 
-	 */
 	private final class ModuleTracker implements BundleTrackerCustomizer {
-		
-		/* (non-Javadoc)
-		 * @see org.osgi.util.tracker.BundleTrackerCustomizer#addingBundle(org.osgi.framework.Bundle, org.osgi.framework.BundleEvent)
-		 */
 		@Override
 		public Object addingBundle(final Bundle bundle,
 				final BundleEvent event) {
 			Bundle result = null;
-			URL url = bundle.getResource("expath-pkg.xml");
+			URL url = bundle.getResource("META-INF/catalog.xml");
 			if (url != null) {
 				logger.trace("tracking '{}' <{}>",
 						bundle.getSymbolicName(), url);
 
-				Module module = mParser.parse(url,
-						new DefaultModuleBuilder()
-								.withLoader(new ResourceLoader() {
+				Module module;
+				try {
+					module = new OSGIModuleBuilder().withBundle(bundle).withCatalog(mParser.parse(url.toURI())).build();
+				} catch (URISyntaxException e) {
+					logger.error("Error getting catalog uri from "+url+"",e);
+					throw new RuntimeException("Error getting catalog uri",e);
 
-									public URL loadResource(
-											String path) {
-
-										// TODO: this is not
-										// efficient at all, assure
-										// to
-										// load the whole path
-										// while loading the bundle
-										// Enumeration res =
-										// bundle.findEntries("/",
-										// path,
-										// true);
-										// if(res==null)
-										// return null;
-										// String completePath =
-										// res.nextElement().toString();
-										URL url = bundle
-												.getResource(path);
-										return url;
-									}
-								}));
+				}
 
 				// System.out.println(module.getName());
 				addModule(module);
@@ -79,18 +51,12 @@ public class DefaultModuleRegistry implements ModuleRegistry {
 			return result;
 		}
 
-		/* (non-Javadoc)
-		 * @see org.osgi.util.tracker.BundleTrackerCustomizer#modifiedBundle(org.osgi.framework.Bundle, org.osgi.framework.BundleEvent, java.lang.Object)
-		 */
 		@Override
 		public void modifiedBundle(Bundle bundle,
 				BundleEvent event, Object object) {
 			// TODO reset module
 		}
 
-		/* (non-Javadoc)
-		 * @see org.osgi.util.tracker.BundleTrackerCustomizer#removedBundle(org.osgi.framework.Bundle, org.osgi.framework.BundleEvent, java.lang.Object)
-		 */
 		@Override
 		public void removedBundle(Bundle bundle, BundleEvent event,
 				Object object) {
@@ -101,33 +67,19 @@ public class DefaultModuleRegistry implements ModuleRegistry {
 		}
 	}
 
-	/** The Constant logger. */
 	private static final Logger logger = LoggerFactory
 			.getLogger(DefaultModuleRegistry.class);
 
-	/** The components map. */
-	private HashMap<URI, Module> componentsMap = new HashMap<URI, Module>();
-	
-	/** The modules. */
-	private HashSet<Module> modules = new HashSet<Module>();
-	
-	/** The m parser. */
-	private EXPathPackageParser mParser;
+	private final HashMap<URI, Module> componentsMap = new HashMap<URI, Module>();
+	private final HashMap<String, Module> entityMap = new HashMap<String, Module>();
+	private final HashSet<Module> modules = new HashSet<Module>();
+	private XmlCatalogParser mParser;
 
-	/** The tracker. */
 	private BundleTracker tracker;
 
-	/**
-	 * Instantiates a new default module registry.
-	 */
 	public DefaultModuleRegistry() {
 	}
 
-	/**
-	 * Inits the the registry (OSGI)
-	 *
-	 * @param context the context
-	 */
 	public void init(BundleContext context) {
 		logger.trace("Activating module registry");
 		tracker = new BundleTracker(context, Bundle.ACTIVE,
@@ -143,55 +95,35 @@ public class DefaultModuleRegistry implements ModuleRegistry {
 		logger.trace("Module registry up");
 	}
 
-	/**
-	 * Closes the registr (OSGI)
-	 */
 	public void close() {
 		tracker.close();
 	}
 
-	/**
-	 * Sets the expath parser to read the module's information
-	 *
-	 * @param parser the new parser
-	 */
-	public void setParser(EXPathPackageParser parser) {
-		this.mParser = parser;
+	public void setParser(XmlCatalogParser parser) {
+		mParser = parser;
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Iterable#iterator()
-	 */
+	@Override
 	public Iterator<Module> iterator() {
 		return modules.iterator();
 	}
 
-	/* (non-Javadoc)
-	 * @see org.daisy.pipeline.modules.ModuleRegistry#getModuleByComponent(java.net.URI)
-	 */
+	@Override
 	public Module getModuleByComponent(URI uri) {
 		return componentsMap.get(uri);
 	}
 
-	/* (non-Javadoc)
-	 * @see org.daisy.pipeline.modules.ModuleRegistry#resolveDependency(java.net.URI, org.daisy.pipeline.modules.Module)
-	 */
+	@Override
 	public Module resolveDependency(URI component, Module source) {
 		// TODO check cache, otherwise delegate to resolver
 		return null;
 	}
 
-	/* (non-Javadoc)
-	 * @see org.daisy.pipeline.modules.ModuleRegistry#getComponents()
-	 */
 	@Override
 	public Iterable<URI> getComponents() {
 		return componentsMap.keySet();
 	}
 
-	/* (non-Javadoc)
-	 * @see org.daisy.pipeline.modules.ModuleRegistry#addModule(org.daisy.pipeline.modules.Module)
-	 */
 	@Override
 	public void addModule(Module module) {
 		logger.debug("Registring module {}", module.getName());
@@ -200,5 +132,21 @@ public class DefaultModuleRegistry implements ModuleRegistry {
 			logger.debug("  - {}", component.getURI());
 			componentsMap.put(component.getURI(), module);
 		}
+		for (Entity entity: module.getEntities()) {
+			logger.debug("  - {}", entity.getPublicId());
+			entityMap.put(entity.getPublicId(), module);
+		}
 	}
+
+	@Override
+	public Module getModuleByEntity(String publicId) {
+		return entityMap.get(publicId);
+	}
+
+	@Override
+	public Iterable<String> getEntities() {
+		return entityMap.keySet();
+	}
+
+
 }

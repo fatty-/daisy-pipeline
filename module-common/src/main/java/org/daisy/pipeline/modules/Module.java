@@ -7,24 +7,26 @@ import java.util.Map;
 
 // TODO: Auto-generated Javadoc
 /**
- * Daisy pipeline module holds a set of components accesible via their uri, its name, version and dependencies.  
+ * Daisy pipeline module holds a set of components accesible via their uri, its name, version and dependencies.
  */
 public class Module {
 
 	/** The name. */
-	private String name;
-	
+	private final String name;
+
 	/** The version. */
-	private String version;
-	
+	private final String version;
+
 	/** The title. */
-	private String title;
-	
+	private final String title;
+
 	/** The dependencies. */
-	private Map<String, String> dependencies;
-	
+	private final Map<String, String> dependencies;
+
 	/** The components. */
-	private HashMap<URI,Component> components = new HashMap<URI, Component>();
+	private final HashMap<URI,Component> components = new HashMap<URI, Component>();
+	/** The entities. */
+	private final HashMap<String,Entity> entities = new HashMap<String, Entity>();
 
 	/**
 	 * Instantiates a new module.
@@ -34,9 +36,10 @@ public class Module {
 	 * @param title the title
 	 * @param dependencies the dependencies
 	 * @param components the components
+	 * @param entities the entities
 	 */
 	public Module(String name, String version, String title,
-			Map<String, String> dependencies, List<Component> components) {
+			Map<String, String> dependencies, List<Component> components,List<Entity> entities) {
 		this.name = name;
 		this.version = version;
 		this.title = title;
@@ -45,7 +48,12 @@ public class Module {
 			component.setModule(this);
 			this.components.put(component.getURI(), component);
 		}
-		
+
+		for (Entity entity:entities){
+			entity.setModule(this);
+			this.entities.put(entity.getPublicId(), entity);
+		}
+
 	}
 
 	/**
@@ -92,7 +100,7 @@ public class Module {
 	public Iterable<Component> getComponents() {
 		return components.values();
 	}
-	
+
 	/**
 	 * Gets the component identified by the given uri.
 	 *
@@ -102,7 +110,26 @@ public class Module {
 	public Component getComponent(URI uri){
 		return components.get(uri);
 	}
-	
+
+	/**
+	 * Gets the list of entities.
+	 *
+	 * @return the entities
+	 */
+	public Iterable<Entity> getEntities(){
+		return entities.values();
+	}
+
+	/**
+	 * Gets the entity identified by the given public id.
+	 *
+	 * @param publicId the public id
+	 * @return the entity
+	 */
+	public Entity getEntity(String publicId){
+		return entities.get(publicId);
+	}
+
 	/* (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */

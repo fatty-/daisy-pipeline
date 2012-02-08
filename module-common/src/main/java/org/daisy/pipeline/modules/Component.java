@@ -7,11 +7,12 @@ import java.net.URL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
- * Module component now based on expath package components. 
+ * Module component now based on expath package components.
  */
 public class Component {
+
+	//private static final String META_INF = "/META-INF/";
 
 	/**
 	 * The Enum Space.
@@ -33,13 +34,13 @@ public class Component {
 	}
 
 	/** The uri. */
-	private URI uri;
+	private final URI uri;
 
 	/** The path. */
-	private String path;
+	private final String path;
 	// private Space space;
 	/** The loader. */
-	private ResourceLoader loader;
+	private final ResourceLoader loader;
 
 	/** The module. */
 	private Module module;
@@ -49,7 +50,7 @@ public class Component {
 
 	/**
 	 * Instantiates a new component.
-	 * 
+	 *
 	 * @param uri
 	 *            the uri
 	 * @param path
@@ -60,13 +61,13 @@ public class Component {
 	public Component(URI uri, String path, ResourceLoader loader) {
 		this.uri = uri;
 		this.path = path;
-		// this.space = space;
+		//this.space = space;
 		this.loader = loader;
 	}
 
 	/**
 	 * Gets the component's URI.
-	 * 
+	 *
 	 * @return the uRI
 	 */
 	public URI getURI() {
@@ -79,18 +80,19 @@ public class Component {
 
 	/**
 	 * Gets the resource's real uri.
-	 * 
+	 *
 	 * @return the resource
 	 */
 	public URI getResource() {
 		try {
-			mLogger.debug("getting resource from component:"
-					+ this.module.getName() + "/" + path);
-			URL url = loader.loadResource(this.module.getName() + "/" + path);
-			if (url != null)
+
+			mLogger.debug("getting resource from component:"+path);
+			URL url= loader.loadResource(path);
+			if(url!=null) {
 				return url.toURI();
-			else
+			} else {
 				return null;
+			}
 
 		} catch (URISyntaxException e) {
 			return null;
@@ -99,7 +101,7 @@ public class Component {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see java.lang.Object#toString()
 	 */
 	@Override
@@ -109,7 +111,7 @@ public class Component {
 
 	/**
 	 * Gets the module owner of this component.
-	 * 
+	 *
 	 * @return the module
 	 */
 	public Module getModule() {
@@ -118,7 +120,7 @@ public class Component {
 
 	/**
 	 * Sets the module.
-	 * 
+	 *
 	 * @param module
 	 *            the new module
 	 */

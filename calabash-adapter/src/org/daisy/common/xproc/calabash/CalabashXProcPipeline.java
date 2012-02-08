@@ -16,6 +16,7 @@ import org.daisy.common.base.Provider;
 import org.daisy.common.messaging.MessageAccessor;
 import org.daisy.common.messaging.MessageListenerFactory;
 import org.daisy.common.xproc.XProcInput;
+import org.daisy.common.xproc.XProcMonitor;
 import org.daisy.common.xproc.XProcOptionInfo;
 import org.daisy.common.xproc.XProcPipeline;
 import org.daisy.common.xproc.XProcPipelineInfo;
@@ -39,22 +40,22 @@ import com.xmlcalabash.runtime.XPipeline;
 
 
 /**
- * Calabash piplines allow to define and run xproc pipelines using calabash. The pipelines supplied by this class are reusable.   
+ * Calabash piplines allow to define and run xproc pipelines using calabash. The pipelines supplied by this class are reusable.
  */
 public class CalabashXProcPipeline implements XProcPipeline {
 
 	/** The uri. */
 	private final URI uri;
-	
+
 	/** The config factory. */
 	private final XProcConfigurationFactory configFactory;
-	
+
 	/** The uri resolver. */
 	private final URIResolver uriResolver;
-	
+
 	/** The entity resolver. */
 	private final EntityResolver entityResolver;
-	
+
 	/** The message listener factory. */
 	private final MessageListenerFactory messageListenerFactory;
 
@@ -91,7 +92,7 @@ public class CalabashXProcPipeline implements XProcPipeline {
 					listeners.getAccessor());
 		}
 	};
-	
+
 	/** Suplies the current Pipeline info for this pipeline object */
 	private final Supplier<XProcPipelineInfo> info = Suppliers
 			.memoize(new Supplier<XProcPipelineInfo>() {
@@ -157,13 +158,20 @@ public class CalabashXProcPipeline implements XProcPipeline {
 	public XProcPipelineInfo getInfo() {
 		return info.get();
 	}
+	@Override
+	public XProcResult run(XProcInput data) {
+		return run(data,null);
+	}
 
 	/* (non-Javadoc)
 	 * @see org.daisy.common.xproc.XProcPipeline#run(org.daisy.common.xproc.XProcInput)
 	 */
 	@Override
-	public XProcResult run(XProcInput data) {
+	public XProcResult run(XProcInput data, XProcMonitor monitor) {
 		PipelineInstance pipeline = pipelineSupplier.get();
+		if (monitor!=null){
+			monitor.setMessageAccessor(pipeline.messageAccessor);
+		}
 		// bind inputs
 		for (String name : pipeline.xpipe.getInputs()) {
 			for (Provider<Source> sourceProvider : data.getInputs(name)) {
@@ -209,7 +217,8 @@ public class CalabashXProcPipeline implements XProcPipeline {
 		} catch (SaxonApiException e) {
 			e.printStackTrace();
 		}
-		return CalabashXProcResult.newInstance(pipeline.xpipe, pipeline.config,
+		//pipeline set to null to free its reference
+		return CalabashXProcResult.newInstance(/*pipeline.xpipe*/null, pipeline.config,
 				pipeline.messageAccessor);
 	}
 
@@ -236,13 +245,13 @@ public class CalabashXProcPipeline implements XProcPipeline {
 	 * The Class PipelineInstance is just a holder for various objects to connect with the suppliers .
 	 */
 	private static final class PipelineInstance {
-		
+
 		/** The xpipe. */
 		private final XPipeline xpipe;
-		
+
 		/** The config. */
 		private final XProcConfiguration config;
-		
+
 		/** The message accessor. */
 		private final MessageAccessor messageAccessor;
 
@@ -257,7 +266,8 @@ public class CalabashXProcPipeline implements XProcPipeline {
 				MessageAccessor accessor) {
 			this.xpipe = xpipe;
 			this.config = config;
-			this.messageAccessor = accessor;
+			messageAccessor = accessor;
 		}
 	}
+
 }
