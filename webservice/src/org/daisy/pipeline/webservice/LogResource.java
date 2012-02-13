@@ -7,6 +7,7 @@ import org.daisy.pipeline.job.Job;
 import org.daisy.pipeline.job.JobId;
 import org.daisy.pipeline.job.JobIdFactory;
 import org.daisy.pipeline.job.JobManager;
+import org.daisy.pipeline.job.JobResult;
 import org.restlet.data.MediaType;
 import org.restlet.data.Status;
 import org.restlet.representation.FileRepresentation;
@@ -73,12 +74,16 @@ public class LogResource extends AuthenticatedResource {
     	setStatus(Status.SUCCESS_OK);
 
     	FileRepresentation logfile;
-    	URI logfileUri = job.getResult().getLogFile();
+    	JobResult result = job.getResult();
+    	if (result == null){
+    		return null;
+    	}
+    	URI logfileUri = result.getLogFile();
     	if (logfileUri != null) {
-    		logfile = new FileRepresentation(new File(job.getResult().getLogFile()), MediaType.TEXT_PLAIN);
+    		logfile = new FileRepresentation(new File(logfileUri), MediaType.TEXT_PLAIN);
     		return logfile;
     	} else {
 			return null;
-		}
+        }
 	}
 }
