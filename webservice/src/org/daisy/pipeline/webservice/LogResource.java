@@ -84,6 +84,6 @@ public class LogResource extends AuthenticatedResource {
     		return logfile;
     	} else {
 			return null;
-        }
+		}
 	}
 }

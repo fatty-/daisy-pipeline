@@ -5,6 +5,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Random;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+
+import org.daisy.pipeline.database.DatabaseManager;
 import org.daisy.pipeline.job.JobManager;
 import org.daisy.pipeline.script.ScriptRegistry;
 import org.osgi.framework.BundleContext;
@@ -17,14 +22,14 @@ import org.restlet.data.Protocol;
 import org.restlet.routing.Router;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Document;
+import org.xml.sax.SAXException;
 
 // TODO: Auto-generated Javadoc
 /**
  * The Class PipelineWebService.
  */
 public class PipelineWebService extends Application {
-
-
 
 	/** The logger. */
 	private static Logger logger = LoggerFactory.getLogger(PipelineWebService.class.getName());
@@ -35,10 +40,12 @@ public class PipelineWebService extends Application {
 	public static final String MAX_REQUEST_TIME_PROPERTY = "org.daisy.pipeline.ws.maxrequesttime";
 	public static final String TMPDIR_PROPERTY = "org.daisy.pipeline.ws.tmpdir";
 	public static final String AUTHENTICATION_PROPERTY = "org.daisy.pipeline.ws.authentication";
-	public static final String LOCAL_MODE = "org.daisy.pipeline.ws.local";
+	public static final String LOCAL_MODE_PROPERTY = "org.daisy.pipeline.ws.local";
+	public static final String CLIENT_STORE_PROPERTY = "org.daisy.pipeline.ws.clientstore";
+	public static final String JAVA_IO_TMPDIR_PROPERTY = "java.io.tmpdir";
 
 	public static final String KEY_FILE_NAME="dp2key.txt";
-	private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
+
 
 	public static final String SCRIPTS_ROUTE = "/scripts";
 	public static final String SCRIPT_ROUTE = "/scripts/{id}";
@@ -99,6 +106,9 @@ public class PipelineWebService extends Application {
 	public void init(BundleContext ctxt) {
 		bundleCtxt=ctxt;
 		readOptions();
+		if (isAuthenticationEnabled()) {
+			initClientStore();
+		}
 		logger.info(String.format("Starting webservice on port %d",
 				portNumber));
 		Component component = new Component();
@@ -120,11 +130,11 @@ public class PipelineWebService extends Application {
 
 	private void generateStopKey() throws IOException {
 		shutDownKey = new Random().nextLong();
-		File fout = new File(System.getProperty(JAVA_IO_TMPDIR)+File.separator+KEY_FILE_NAME);
+		File fout = new File(System.getProperty(JAVA_IO_TMPDIR_PROPERTY)+File.separator+KEY_FILE_NAME);
 		FileOutputStream fos= new FileOutputStream(fout);
 		fos.write((shutDownKey+"").getBytes());
 		fos.close();
-		logger.info("Shutdown key stored to: "+System.getProperty(JAVA_IO_TMPDIR)+File.separator+KEY_FILE_NAME);
+		logger.info("Shutdown key stored to: "+System.getProperty(JAVA_IO_TMPDIR_PROPERTY)+File.separator+KEY_FILE_NAME);
 	}
 
 	public boolean shutDown(long key) throws BundleException{
@@ -135,6 +145,35 @@ public class PipelineWebService extends Application {
 		}
 		return false;
 
+	}
+
+	private void initClientStore() {
+		String clientstorefile = System.getProperty(CLIENT_STORE_PROPERTY);
+		File file = new File(clientstorefile);
+		if (file.exists()) {
+			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+			factory.setNamespaceAware(true);
+			DocumentBuilder documentBuilder;
+			try {
+				documentBuilder = factory.newDocumentBuilder();
+				Document doc = documentBuilder.parse(file);
+				if (Validator.validateXml(doc, Validator.clientsSchema)) {
+					DatabaseManager.getInstance().loadData(doc);
+				}
+				else {
+					logger.error(String.format("Could not validate client store file %s", clientstorefile));
+				}
+			} catch (ParserConfigurationException e) {
+				logger.error(e.getMessage());
+			} catch (SAXException e) {
+				logger.error(e.getMessage());
+			} catch (IOException e) {
+				logger.error(e.getMessage());
+			}
+		}
+		else {
+			logger.error(String.format("Client store file %s not found.", clientstorefile));
+		}
 	}
 
 	/**
@@ -150,7 +189,7 @@ public class PipelineWebService extends Application {
 
 
 	public boolean isLocal() {
-		return Boolean.valueOf(System.getProperty(LOCAL_MODE));
+		return Boolean.valueOf(System.getProperty(LOCAL_MODE_PROPERTY));
 	}
 
 

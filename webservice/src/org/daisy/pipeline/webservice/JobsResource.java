@@ -3,8 +3,6 @@ package org.daisy.pipeline.webservice;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.zip.ZipFile;
@@ -75,7 +73,7 @@ public class JobsResource extends AuthenticatedResource {
     	}
 
 		JobManager jobMan = ((PipelineWebService)getApplication()).getJobManager();
-		Document doc = XmlFormatter.jobsToXml(jobMan.getJobs());
+		Document doc = XmlFormatter.jobsToXml(jobMan.getJobs(), getRootRef().toString());
 		DomRepresentation dom = new DomRepresentation(MediaType.APPLICATION_XML, doc);
 		setStatus(Status.SUCCESS_OK);
 		return dom;
@@ -155,7 +153,7 @@ public class JobsResource extends AuthenticatedResource {
 			return null;
 		}
 
-		Document jobXml = XmlFormatter.jobToXml(job, 0);
+		Document jobXml = XmlFormatter.jobToXml(job, 0, getRootRef().toString());
 		DomRepresentation dom = new DomRepresentation(MediaType.APPLICATION_XML, jobXml);
 		setStatus(Status.SUCCESS_CREATED);
 		return dom;
@@ -288,34 +286,32 @@ public class JobsResource extends AuthenticatedResource {
 
 		Element scriptElm = (Element) doc.getElementsByTagName("script").item(0);
 
-		URI scriptUri = null;
-		try {
-			scriptUri = new URI(scriptElm.getAttribute("href"));
-		} catch (URISyntaxException e) {
-			logger.error(e.getMessage());
-			return null;
+		// get the ID from the href attr value
+		String scriptId = scriptElm.getAttribute("href");
+		if (scriptId.endsWith("/")) {
+		    scriptId = scriptId.substring(0, scriptId.length() - 1);
 		}
+		int idx = scriptId.lastIndexOf('/');
+		scriptId = scriptId.substring(idx+1);
 
-		// get the script from the URI
+		// get the script from the ID
 		ScriptRegistry scriptRegistry = ((PipelineWebService)getApplication()).getScriptRegistry();
-		XProcScriptService unfilteredScript = scriptRegistry.getScript(scriptUri);
-		XProcScript script = null;
-
-		if (unfilteredScript != null) {
-		/*	script = (((PipelineWebService) getApplication()).isLocal()) ?
-					unfilteredScript.load() : XProcScriptFilter.INSTANCE.filter(unfilteredScript.load());\
-		*/
-			script = unfilteredScript.load();
-		}
-		else {
+		XProcScriptService unfilteredScript = scriptRegistry.getScript(scriptId);
+		if (unfilteredScript == null) {
 			logger.error("Script not found");
 			return null;
 		}
-
+		XProcScript script = unfilteredScript.load();
 		XProcInput.Builder builder = new XProcInput.Builder(script.getXProcPipelineInfo());
 
 		addInputsToJob(doc.getElementsByTagName("input"), script.getXProcPipelineInfo().getInputPorts(), builder);
-		addOptionsToJob(doc.getElementsByTagName("option"), script.getXProcPipelineInfo().getOptions(), builder);
+
+		Iterable<XProcOptionInfo> filteredOptions = null;
+		if (!((PipelineWebService) getApplication()).isLocal()) {
+			filteredOptions = XProcScriptFilter.INSTANCE.filter(script).getXProcPipelineInfo().getOptions();
+		}
+
+		addOptionsToJob(doc.getElementsByTagName("option"), script.getXProcPipelineInfo().getOptions(), builder, filteredOptions);
 
 		XProcInput input = builder.build();
 
@@ -404,17 +400,38 @@ public class JobsResource extends AuthenticatedResource {
 	 * Adds the options to job.
 	 *
 	 * @param nodes the nodes
-	 * @param options the options
+	 * @param allOptions the options
 	 * @param builder the builder
 	 */
-	private void addOptionsToJob(NodeList nodes, Iterable<XProcOptionInfo> options, XProcInput.Builder builder) {
+	private void addOptionsToJob(NodeList nodes, Iterable<XProcOptionInfo> allOptions, XProcInput.Builder builder, Iterable<XProcOptionInfo> filteredOptions) {
 
-		Iterator<XProcOptionInfo> it = options.iterator();
+		Iterator<XProcOptionInfo> it = allOptions.iterator();
 		while(it.hasNext()) {
 			XProcOptionInfo opt = it.next();
 			String optionName = opt.getName().toString();
 
-			// look for name
+			// if we are filtering options, then check to ensure that this particular option exists in the filtered set
+			if (filteredOptions != null) {
+				Iterator<XProcOptionInfo> itFilter = filteredOptions.iterator();
+				boolean found = false;
+				while (itFilter.hasNext()) {
+					String filteredOptName = itFilter.next().getName().toString();
+					if (filteredOptName.equals(optionName)) {
+						found = true;
+						break;
+					}
+				}
+
+				// if the option did not exist in the filtered set of options
+				// then we are not allowed to set it
+				// however, it still requires a value, so set it to ""
+				if (!found) {
+					builder.withOption(new QName(optionName), "");
+					continue;
+				}
+			}
+
+			// this is an option we are allowed to set. so, look for the option in the job request doc.
 			for (int i = 0; i< nodes.getLength(); i++) {
 				Element optionElm = (Element) nodes.item(i);
 				String name = optionElm.getAttribute("name");
@@ -424,7 +441,6 @@ public class JobsResource extends AuthenticatedResource {
 					break;
 				}
 			}
-
 		}
 	}
 }
