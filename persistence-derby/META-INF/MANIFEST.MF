@@ -1,0 +1,14 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: persistence-derby
+Bundle-SymbolicName: persistence-derby
+Bundle-Version: 1.0.0.qualifier
+Import-Package: com.google.common.base,
+ org.daisy.common.messaging,
+ org.osgi.framework;version="1.3.0",
+ org.slf4j
+Bundle-RequiredExecutionEnvironment: JavaSE-1.6
+Service-Component: OSGI-INF/daisy-derby-emf.xml
+Require-Bundle: framework-persistence,
+ org.apache.derby;bundle-version="10.5",
+ javax.persistence;bundle-version="2.0.4"
