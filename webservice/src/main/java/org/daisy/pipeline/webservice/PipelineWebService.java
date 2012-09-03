@@ -7,6 +7,7 @@ import java.util.Random;
 
 import org.daisy.pipeline.job.JobManager;
 import org.daisy.pipeline.script.ScriptRegistry;
+import org.daisy.pipeline.webserviceutils.Properties;
 import org.daisy.pipeline.webserviceutils.Routes;
 import org.daisy.pipeline.webserviceutils.callback.CallbackRegistry;
 import org.daisy.pipeline.webserviceutils.clients.Client;
@@ -17,6 +18,7 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.BundleException;
 import org.osgi.framework.launch.Framework;
 import org.restlet.Application;
+import org.restlet.Server;
 import org.restlet.Component;
 import org.restlet.Restlet;
 import org.restlet.data.Protocol;
@@ -24,7 +26,6 @@ import org.restlet.routing.Router;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: Auto-generated Javadoc
 /**
  * The Class PipelineWebService.
  */
@@ -32,19 +33,10 @@ public class PipelineWebService extends Application {
 
 	/** The logger. */
 	private static Logger logger = LoggerFactory.getLogger(PipelineWebService.class.getName());
-
-	/* other runtime-configurable property names */
-	public static final String MAX_REQUEST_TIME_PROPERTY = "org.daisy.pipeline.ws.maxrequesttime";
-	public static final String TMPDIR_PROPERTY = "org.daisy.pipeline.ws.tmpdir";
-	public static final String AUTHENTICATION_PROPERTY = "org.daisy.pipeline.ws.authentication";
-	public static final String LOCAL_MODE_PROPERTY = "org.daisy.pipeline.ws.local";
-	public static final String JAVA_IO_TMPDIR_PROPERTY = "java.io.tmpdir";
 	
 	public static final String KEY_FILE_NAME="dp2key.txt";
-
-	private boolean usesAuthentication = true;
-	private long maxRequestTime = 600000; // 10 minutes in ms
-	private String tmpDir = "/tmp";
+	PipelineWebServiceConfiguration conf= new PipelineWebServiceConfiguration();
+	
 	
 	/** The job manager. */
 	private JobManager jobManager;
@@ -74,6 +66,7 @@ public class PipelineWebService extends Application {
 		router.attach(Routes.JOB_ROUTE, JobResource.class);
 		router.attach(Routes.LOG_ROUTE, LogResource.class);
 		router.attach(Routes.RESULT_ROUTE, ResultResource.class);
+		router.attach(Routes.ALIVE_ROUTE,AliveResource.class);
 
 		// init the administrative paths
 		router.attach(Routes.CLIENTS_ROUTE, ClientsResource.class);
@@ -88,17 +81,31 @@ public class PipelineWebService extends Application {
 	 */
 	public void init(BundleContext ctxt) {
 		bundleCtxt=ctxt;
-		readOptions();
+		checkAuthenticationSanity();
 		Routes routes = new Routes();
 		
 		logger.info(String.format("Starting webservice on port %d",
 				routes.getPort()));
 		Component component = new Component();
-		component.getServers().add(Protocol.HTTP, routes.getPort());
+		
+		if (!conf.isSsl()){
+			component.getServers().add(Protocol.HTTP, routes.getPort());
+			logger.debug("Using HTTP");
+		}else{
+			Server server = component.getServers().add(Protocol.HTTPS, routes.getPort());
+			server.getContext().getParameters().add("keystorePath",conf.getSslKeystore()); 
+			server.getContext().getParameters().add("keystorePassword",conf.getSslKeystorePassword());
+			server.getContext().getParameters().add("keyPassword",conf.getSslKeyPassword());
+			logger.debug("Using HTTPS");
+		}
+		
+		
 		component.getDefaultHost().attach(routes.getPath(), this);
 		this.setStatusService(new PipelineStatusService());
 		try {
+
 			component.start();
+			logger.debug("component started");
 			generateStopKey();
 		} catch (Exception e) {
 			logger.error("Shutting down the framework because of:"+e.getMessage());
@@ -111,23 +118,53 @@ public class PipelineWebService extends Application {
 		}
 	}
 
+	private void checkAuthenticationSanity() {
+		if (this.conf.isAuthenticationEnabled()) {
+			//if the clientStore is empty close the 
+			//WS
+			if (clientStore.getAll().size()==0){
+				//no properties supplied
+				if (conf.getClientKey()==null || conf.getClientSecret()==null || conf.getClientKey().isEmpty()|| conf.getClientSecret().isEmpty()){
+					logger.error("WS mode authenticated but the client store is empty, exiting");
+					try {
+						this.halt();
+						return;
+					} catch (BundleException e) {
+						logger.error("Error while closing the WS",e);
+						throw new RuntimeException("Error while closing the WS",e);
+					}
+				}else{
+					//new admin client via configuration properties
+					logger.debug("Inserting new client: "+conf.getClientKey());
+					clientStore.add(new SimpleClient(conf.getClientKey(),conf.getClientSecret(),Client.Role.ADMIN,"from configuration"));
+
+				}
+
+			}
+		}
+
+	}
+		
+
 	private void generateStopKey() throws IOException {
 		shutDownKey = new Random().nextLong();
-		File fout = new File(System.getProperty(JAVA_IO_TMPDIR_PROPERTY)+File.separator+KEY_FILE_NAME);
+		File fout = new File(System.getProperty(Properties.JAVA_IO_TMPDIR)+File.separator+KEY_FILE_NAME);
 		FileOutputStream fos= new FileOutputStream(fout);
 		fos.write((shutDownKey+"").getBytes());
 		fos.close();
-		logger.info("Shutdown key stored to: "+System.getProperty(JAVA_IO_TMPDIR_PROPERTY)+File.separator+KEY_FILE_NAME);
+		logger.info("Shutdown key stored to: "+System.getProperty(Properties.JAVA_IO_TMPDIR)+File.separator+KEY_FILE_NAME);
 	}
 
 	public boolean shutDown(long key) throws BundleException{
 		if(key==shutDownKey){
-			//framework bundle id == 0
-			((Framework)bundleCtxt.getBundle(0)).stop();
+			halt();
 			return true;
 		}
 		return false;
 
+	}
+	private void halt() throws BundleException{
+			((Framework)bundleCtxt.getBundle(0)).stop();
 	}
 	/**
 	 * Close.
@@ -140,25 +177,6 @@ public class PipelineWebService extends Application {
 
 	}
 
-
-	public boolean isLocal() {
-		return Boolean.valueOf(System.getProperty(LOCAL_MODE_PROPERTY));
-	}
-
-
-	public String getTmpDir() {
-		return tmpDir;
-	}
-
-	
-	public boolean isAuthenticationEnabled() {
-		return usesAuthentication;
-	}
-
-	// the length of time in ms that a request is valid for, counting from its timestamp value
-	public long getMaxRequestTime() {
-		return maxRequestTime;
-	}
 
 	/**
 	 * Gets the job manager.
@@ -176,6 +194,10 @@ public class PipelineWebService extends Application {
 	 */
 	public void setJobManager(JobManager jobManager) {
 		this.jobManager = jobManager;
+	}
+
+	public PipelineWebServiceConfiguration getConfiguration(){
+		return this.conf;	
 	}
 
 	/**
@@ -230,56 +252,6 @@ public class PipelineWebService extends Application {
 	public void setClientStore(ClientStore<?> clientStore) {
 		this.clientStore = clientStore;
 
-		// TODO for testing only
-		if (isAuthenticationEnabled()) {
-			Client client = new SimpleClient("clientid", "supersecret", Client.Role.ADMIN, "me@example.org");
-			clientStore.add(client);
-		}
-
 	}
 
-	private void readOptions() {
-		
-		String authentication = System.getProperty(AUTHENTICATION_PROPERTY);
-
-		if (authentication != null) {
-			if (authentication.equalsIgnoreCase("true")) {
-				usesAuthentication = true;
-			}
-			else if (authentication.equalsIgnoreCase("false")) {
-				usesAuthentication = false;
-				logger.info("Web service authentication is OFF");
-			}
-			else {
-				logger.error(String.format(
-						"Value specified in option %s (%s) is not valid. Using default value of %s.",
-						AUTHENTICATION_PROPERTY, authentication, usesAuthentication));
-			}
-		}
-
-		String tmp = System.getProperty(TMPDIR_PROPERTY);
-		if (tmp != null) {
-			File f = new File(tmp);
-			if (f.exists()) {
-				tmpDir = tmp;
-			}
-			else {
-				logger.error(String.format(
-						"Value specified in option %s (%s) is not valid. Using default value of %s.",
-						TMPDIR_PROPERTY, tmp, tmpDir));
-			}
-		}
-
-		String maxrequesttime = System.getProperty(MAX_REQUEST_TIME_PROPERTY);
-		if (maxrequesttime != null) {
-			try {
-				long ms = Long.parseLong(maxrequesttime);
-				maxRequestTime = ms;
-			} catch(NumberFormatException e) {
-				logger.error(String.format(
-						"Value specified in option %s (%s) is not a valid numeric value. Using default value of %d.",
-						MAX_REQUEST_TIME_PROPERTY, maxrequesttime, maxRequestTime));
-			}
-		}
-	}
 }

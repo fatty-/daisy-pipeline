@@ -44,8 +44,7 @@ public class Job {
 	/** The script. */
 	private final XProcScript script;
 
-	/** The output. */
-	private XProcResult output;
+	//private XProcResult output;
 
 	/** The results. */
 	private JobResult results;
@@ -78,6 +77,7 @@ public class Job {
 		this.input = input;
 		this.ioBridge = ioBridge;
 		this.monitor=monitor;
+		this.results=new JobResult.Builder().withMessageAccessor(monitor.getMessageAccessor()).withZipFile(null).withLogFile(null).build();
 	}
 
 	/**
@@ -128,23 +128,24 @@ public class Job {
 		Properties props=new Properties();
 		props.setProperty("JOB_ID", id.toString());
 		try{
-			output = pipeline.run(input,monitor,props);
+			pipeline.run(input,monitor,props);
+			buildResults();
 			status=Status.DONE;
 		}catch(Exception e){
 			logger.error("job finished with error state",e);
+			//buildResults();
 			status=Status.ERROR;
 		}
 
-
+	}
+	private void buildResults() {
 		JobResult.Builder builder = new JobResult.Builder();
 		builder.withMessageAccessor(monitor.getMessageAccessor());
 		builder.withLogFile(ioBridge.getLogFile());
 		builder = (ioBridge != null) ? builder.withZipFile(ioBridge
 				.zipOutput()) : builder;
 		results = builder.build();
-
 	}
-
 	/**
 	 * Gets the result.
 	 *
